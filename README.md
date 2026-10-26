@@ -17,12 +17,23 @@ production-ready Kubernetes manifests.
 
 - Docker 24+ with BuildKit
 - Docker Compose v2
+- Alternatively, rootless **Podman 4.9+** works as a drop-in: the same compose
+  file runs unmodified through `podman compose` (validated end to end, see
+  command below).
 
 ## Bring the environment up with a single command
 
 ```bash
 cp .env.example .env          # adjust DB_PASSWORD before use
 docker compose up --build
+```
+
+With rootless Podman (one-time socket setup, no daemon needed):
+
+```bash
+cp .env.example .env          # adjust DB_PASSWORD before use
+systemctl --user enable --now podman.socket
+podman compose up --build
 ```
 
 The API will be available at `http://localhost:5000`. Compose starts, in order:
