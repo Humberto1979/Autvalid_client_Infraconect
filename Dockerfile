@@ -26,6 +26,16 @@ WORKDIR /app
 # Dependencias do estagio de build, ja com chown.
 COPY --from=build --chown=appuser:appgroup /install /usr/local
 
+# DevSecOps: runtime minimo. O aplicativo nao instala pacotes em runtime;
+# pip (e suas copias vendidas antigas: msgpack, urllib3) e setuptools nao
+# sao necessarios e poluem o inventario do scanner de vulnerabilidades.
+RUN python -m pip uninstall --yes pip setuptools \
+ && rm -rf /usr/local/lib/python3.13/site-packages/pip* \
+           /usr/local/lib/python3.13/site-packages/setuptools* \
+           /usr/local/lib/python3.13/site-packages/pkg_resources \
+           /usr/local/lib/python3.13/_distutils_hack \
+           /usr/local/bin/pip*
+
 # F1/F5: codigo da aplicacao entra imutavel no build.
 COPY --chown=appuser:appgroup src/ ./
 

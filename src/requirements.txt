@@ -1,4 +1,9 @@
-Flask==3.0.3
-gunicorn==23.0.0
-psycopg[binary,pool]==3.2.3
-pydantic-settings==2.5.2
+Flask==3.1.3
+gunicorn==26.2.0
+psycopg[binary,pool]==3.3.6
+pydantic-settings==2.16.1
+
+# Transitive deps pinned by security findings (CI gate: trivy HIGH/CRITICAL):
+msgpack==1.2.4     # GHSA-6v7p-g79w-8964 (fixed >= 1.2.1)
+setuptools==84.2.1 # CVE-2025-47273 (fixed >= 78.1.1; ships in base image)
+urllib3==2.8.0     # CVE-2026-97687 / CVE-2026-97689 (fixed >= 2.8.0)
