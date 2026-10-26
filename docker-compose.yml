@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks: [infra]
+
+  migrate:
+    # F12 Admin process: mesma imagem da app, env igual, processo efemero.
+    build: { context: ., dockerfile: Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    user: "1000:1000"
+    entrypoint: ["python", "-m", "app.migrate"]
+    restart: "no"
+    networks: [infra]
+
+  api:
+    build: { context: ., dockerfile: Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_PORT: "5000"
+      GUNICORN_WORKERS: "2"
+    ports:
+      # HOST_PORT (do .env) -> porta fixa do container (APP_PORT=5000).
+      - "${HOST_PORT:-5000}:5000"
+    restart: unless-stopped
+    networks: [infra]
+
+volumes:
+  pgdata:
+
+networks:
+  infra:

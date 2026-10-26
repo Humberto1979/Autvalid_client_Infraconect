@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.log
+.pytest_cache/
+.mypy_cache/
+
+# Documentos internos (fora da entrega; o README.md e o unico .md versionado)
+desafios_tecnicos.md
+Desafio_tecnico_1.md
+desafio_tecnico_1.md

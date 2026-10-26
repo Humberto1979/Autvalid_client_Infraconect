@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: infraconect-api
+  labels: { app: infraconect-api }
+spec:
+  type: ClusterIP
+  selector: { app: infraconect-api }
+  ports:
+    - { name: http, port: 80, targetPort: http, protocol: TCP }

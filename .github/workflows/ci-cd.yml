@@ -1,0 +1,125 @@
+name: ci-cd
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  IMAGE: ghcr.io/humberto1979/infraconect-api
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: Dockerfile }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install ruff==0.6.9
+      - run: ruff check src tests
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: change_me_in_test
+          POSTGRES_DB: infraconect_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d infraconect_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: infraconect_test
+      DB_USER: app
+      DB_PASSWORD: change_me_in_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install -r src/requirements.txt
+      - run: pip install pytest==8.3.3
+      # Testes vivem na raiz (tests/) e importam `app.*` de dentro de src/.
+      - run: PYTHONPATH=src pytest -q tests
+
+  build-scan-push:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (load)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # CD (GitOps-lite): fixa a tag do commit no manifesto de Deployment.
+  # Elimina o par `:latest` + `IfNotPresent` (pod subir imagem antiga em
+  # cache no no) e garante rollback/rastreabilidade por sha.
+  update-manifest:
+    needs: [build-scan-push]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fixar tag do build (sha) em k8s/deployment.yaml
+        run: |
+          sed -i "s|ghcr.io/humberto1979/infraconect-api:[a-z0-9]*|ghcr.io/humberto1979/infraconect-api:${GITHUB_SHA}|g" k8s/deployment.yaml
+          if git diff --quiet k8s/deployment.yaml; then
+            echo "Manifesto ja esta na tag correta. Nada a fazer."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/deployment.yaml
+          git commit -m "chore(cd): fixar imagem ${GITHUB_SHA::7} no deployment [skip ci]"
+          git push

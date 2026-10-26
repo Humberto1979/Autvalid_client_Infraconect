@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infraconect-api
+  labels: { app: infraconect-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: infraconect-api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: infraconect-api }
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          # Tag imutavel fixada por commit: o CI publica a imagem `:<sha>` a
+          # cada push em main e o job `update-manifest` reescreve a tag abaixo.
+          # `:latest` fica restrito ao desenvolvimento (Compose local).
+          image: ghcr.io/humberto1979/infraconect-api:latest # substituido por :<sha> pelo CD
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { containerPort: 5000, name: http }
+          envFrom:
+            - configMapRef: { name: api-config }
+            - secretRef:   { name: api-secret }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3

@@ -1,0 +1,1 @@
+# Blueprints em routes/health.py e routes/records.py.
