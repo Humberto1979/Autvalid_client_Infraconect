@@ -1,0 +1,38 @@
+# F12 Admin processes: migracoes como processo efemero (Job) com a mesma
+# imagem e env da app. Rode ANTES do Deployment:
+#   kubectl apply -f job-migrations.yaml
+#   kubectl wait --for=condition=complete job/api-migrations --timeout=180s
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-migrations
+  labels: { app: infraconect-api }
+spec:
+  # Idempotente por natureza (registro em schema_migrations);
+  # backoff baixo para falhar rapido em erro de credencial/rede.
+  backoffLimit: 2
+  # Limpeza automatica: nao deixa Job/Pod concluidos acumulando.
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels: { app: infraconect-api }
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: migrate
+          # Mesma tag fixada pelo CD do deployment.yaml (o job `update-manifest`
+          # reescreve as duas tags).
+          image: ghcr.io/humberto1979/infraconect-api:bc276f7b0d37355ff3d16cd7e0b8f13dab192622 # substituido por :<sha> pelo CD
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.migrate"]
+          envFrom:
+            - configMapRef: { name: api-config }
+            - secretRef:   { name: api-secret }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "250m", memory: "128Mi" }
