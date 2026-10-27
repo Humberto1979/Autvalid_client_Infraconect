@@ -12,7 +12,8 @@ spec:
   # backoff baixo para falhar rapido em erro de credencial/rede.
   backoffLimit: 2
   # Limpeza automatica: nao deixa Job/Pod concluidos acumulando.
-  ttlSecondsAfterFinished: 600
+  # 1h (e nao 10 min) para os logs do Job sobreviverem a um diagnostico.
+  ttlSecondsAfterFinished: 3600
   template:
     metadata:
       labels: { app: infraconect-api }

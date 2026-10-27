@@ -100,6 +100,16 @@ the cluster). The Deployment image is pinned automatically by the
 `update-manifest` job (`:<sha>` tag); before `kubectl apply`, set the real
 Postgres endpoint in `k8s/configmap.yaml` and fill in the Secret.
 
+> The target PostgreSQL database **must use a real encoding (UTF-8)**. A
+> database initialized with `SQL_ASCII` (e.g., `initdb` under locale `C`) makes
+> the driver return `text` columns as `bytes`, breaking JSON responses with
+> `TypeError: Object of type bytes is not JSON serializable` on read endpoints.
+> Recreate it with `createdb -E UTF8 -T template0 -l C.UTF-8 -O app <db>`.
+
+Before the Deployment, the schema is created by
+`k8s/job-migrations.yaml` (`python -m app.migrate` with the same image and
+env, F12) and the application starts only on top of the migrated database.
+
 ## Security / DevSecOps
 
 - Base image `python:3.13-slim` (pinned version; never `latest`).
