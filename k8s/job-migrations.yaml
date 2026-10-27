@@ -28,7 +28,7 @@ spec:
         - name: migrate
           # Mesma tag fixada pelo CD do deployment.yaml (o job `update-manifest`
           # reescreve as duas tags).
-          image: ghcr.io/humberto1979/infraconect-api:fe47ff4258d01f3464053b0f826ea45fa1ab5003 # substituido por :<sha> pelo CD
+          image: ghcr.io/humberto1979/infraconect-api:446f4fb03d40daa5ac52c44b780bacd8458869ff # substituido por :<sha> pelo CD
           imagePullPolicy: IfNotPresent
           command: ["python", "-m", "app.migrate"]
           envFrom:
