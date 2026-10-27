@@ -25,7 +25,7 @@ spec:
           # Tag imutavel fixada por commit: o CI publica a imagem `:<sha>` a
           # cada push em main e o job `update-manifest` reescreve a tag abaixo.
           # `:latest` fica restrito ao desenvolvimento (Compose local).
-          image: ghcr.io/humberto1979/infraconect-api:bc276f7b0d37355ff3d16cd7e0b8f13dab192622 # substituido por :<sha> pelo CD
+          image: ghcr.io/humberto1979/infraconect-api:fe47ff4258d01f3464053b0f826ea45fa1ab5003 # substituido por :<sha> pelo CD
           imagePullPolicy: IfNotPresent
           ports:
             - { containerPort: 5000, name: http }
